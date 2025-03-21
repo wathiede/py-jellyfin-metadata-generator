@@ -1,12 +1,15 @@
-# Copyright (C) 2024 eHonnef <contact@honnef.net>
+# Copyright (C) 2025 eHonnef <contact@honnef.net>
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import os
+import shutil
+
 import requests
+from bs4 import BeautifulSoup
 import json
-# import wikipedia
+from dateutil import parser
 import inspect
 import xml.etree.ElementTree as ET
 from datetime import date
@@ -14,7 +17,6 @@ from datetime import datetime
 import logging
 
 fetchnator_logger = logging.getLogger('Fetchnator')
-fetchnator_logger.setLevel(logging.INFO)
 
 module_path = inspect.getfile(inspect.currentframe())
 
@@ -50,7 +52,7 @@ database = Database()
 class RoundInfo:
 
     def __init__(self, season, f1_round, round_date, race_name, circuit_id, sprint_dateTime, fp1_dateTime, fp2_dateTime,
-                 fp3_dateTime, quali_dateTime):
+                 fp3_dateTime, quali_dateTime, sprint_quali_dateTime, wiki_url):
         """
         The parameters list here are the ones expected in the kwargs
 
@@ -64,6 +66,7 @@ class RoundInfo:
         :param fp2_dateTime: fp2 date and time, as defined in the iso8601
         :param fp3_dateTime: fp3 date and time, as defined in the iso8601
         :param quali_dateTime: qualification datetime, as defined in the iso8601
+        :param sprint_quali_dateTime: sprint qualification datetime, as defined in the iso8601
         """
         self.season = season
         self.round = f1_round
@@ -75,9 +78,15 @@ class RoundInfo:
         self.fp2_dateTime = fp2_dateTime
         self.fp3_dateTime = fp3_dateTime
         self.quali_dateTime = quali_dateTime
+        self.sprint_quali_dateTime = sprint_quali_dateTime
+
+        self.wiki_url = wiki_url
 
         # self.race_description = wikipedia.summary(f"{season} {race_name}")
-        self.race_description = self._get_round_info()
+        try:
+            self.race_description = self._get_round_info()
+        except requests.HTTPError:
+            fetchnator_logger.error(f"Could not fetch race description from wikipedia, url={self.wiki_url}")
 
     def __str__(self):
         return (f"Season: {self.season}; "
@@ -85,6 +94,7 @@ class RoundInfo:
                 f"Date: {self.date}; "
                 f"Race: {self.race_name}; "
                 f"SprintDate: {self.sprint_dateTime}; "
+                f"SprintQualiDate: {self.sprint_quali_dateTime}; "
                 f"FP1Date: {self.fp1_dateTime}; "
                 f"FP2Date: {self.fp2_dateTime}; "
                 f"FP3Date: {self.fp3_dateTime}; "
@@ -93,21 +103,13 @@ class RoundInfo:
 
     def _get_round_info(self):
         fetchnator_logger.info(f"Getting data from wikipedia for round={self.round}")
-        res = requests.get(
-            f"https://en.wikipedia.org/w/api.php?action=query"
-            f"&prop=extracts"
-            f"&exintro"
-            f"&exlimit=1"
-            f"&exsectionformat=plain"
-            f"&format=json"
-            f"&titles={self.season} {self.race_name}"
-            f"&explaintext=1",
-            timeout=2
-        )
-        res.raise_for_status()
 
-        page_key = list(json.loads(res.content)["query"]["pages"].keys())[0]
-        return json.loads(res.content)["query"]["pages"][page_key]["extract"]
+        response = requests.get(self.wiki_url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        paragraphs = soup.find_all('p')
+
+        return '\n'.join([para.text.strip() for para in paragraphs[:2]])
 
     def to_xml(self, xml_filename, mapped_dir, round_filename, title, sort_title, aired, artwork_img_ext):
         round_xml = ET.parse(f"{os.path.dirname(module_path)}/nfo-template/episode.nfo")
@@ -119,12 +121,18 @@ class RoundInfo:
         round_xml.getroot().findall("./aired")[0].text = aired
         round_xml.getroot().findall("./dateadded")[0].text = date.today().isoformat()
         round_xml.getroot().findall("./year")[0].text = self.season
-        round_xml.getroot().findall("./art/poster")[
-            0].text = f"{mapped_dir}/metadata/{round_filename}{artwork_img_ext}"
+        round_xml.getroot().findall("./art/poster")[0].text = f"{mapped_dir}/metadata/{round_filename}{artwork_img_ext}"
 
         round_xml.write(xml_filename, encoding="utf-8", xml_declaration=True)
 
-    def get_round_poster(self, filename: str, convert: str):
+    def get_round_poster(self, filename: str, convert: str) -> None:
+        """
+        This is a very specific function for this specific website www.eventartworks.de.
+        Replace with your own if you wish.
+        :param filename: The image path that should be saved, it will be in the format season_dir_path/metadata/round_name.webp
+                         Example: /data/formula 1/season 2024/metadata/Formula - 1 - s2024e19 - .Round.19.USGP.Race.webp
+        :param convert: To which format should it be converted to. Check ImageConvertor class.
+        """
         if convert == ImageConvertor.JPG:
             filename = os.path.splitext(filename)[0] + ".jpg"
 
@@ -132,36 +140,45 @@ class RoundInfo:
             fetchnator_logger.info(f"Poster already exists, no need to fetch")
             return
 
-        round_date = datetime.strftime(datetime.fromisoformat(self.date), "%Y-%m-%d")
+        round_date = datetime.strftime(parser.isoparse(self.date), "%Y-%m-%d")
 
         circuit_id = f"{round_date}-{self.circuit_id}"
         if f"{round_date}-{self.circuit_id}" in database.database.keys():
             circuit_id = database.database[f"{round_date}-{self.circuit_id}"]
         elif self.circuit_id in database.database.keys():
             circuit_id = f"{round_date}-{database.database[self.circuit_id]}"
-        fetchnator_logger.info(
-            f"Getting poster from url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp")
-        resp = requests.get(f"https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp",
-                            stream=True)
-        resp.raise_for_status()
 
-        if resp.headers["Content-Type"] == "image/webp":
-            image_bytes = resp.content
-            if convert == ImageConvertor.JPG:
-                image_bytes = ImageConvertor.convert_webp_to_jpg(resp)
-            with open(filename, "wb") as out_image:
-                out_image.write(image_bytes)
-        else:
-            fetchnator_logger.warning(
-                f"Invalid url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp\n"
-                f"Add to database: {circuit_id}")
+        fetchnator_logger.info(f"Getting round poster from url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp")
+        resp = requests.get(f"https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp", stream=True)
+
+        use_default = resp.status_code != 200
+
+        if not use_default:
+            if resp.headers["Content-Type"] == "image/webp":
+                image_bytes = resp.content
+                if convert == ImageConvertor.JPG:
+                    image_bytes = ImageConvertor.convert_webp_to_jpg(resp)
+                with open(filename, "wb") as out_image:
+                    out_image.write(image_bytes)
+            else:
+                use_default = True
+                fetchnator_logger.warning(
+                    f"Invalid url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp\n"
+                    f"Add to database: '{circuit_id}")
+
+        if use_default:
+            fetchnator_logger.warning("Could not fetch round poster, using default")
+            filename = os.path.splitext(filename)[0] + ".jpg"
+            shutil.copy(f"{os.path.dirname(module_path)}/nfo-template/default_image.jpg", filename)
 
 
 class Season:
-    def __init__(self, season, start_date, end_date):
+    def __init__(self, season, start_date, end_date, season_post_url):
         self.season = season
         self.start_date = start_date
         self.end_date = end_date
+
+        self.season_post_url = season_post_url
 
         self.season_info = self._get_season_info()
 
@@ -186,8 +203,26 @@ class Season:
 
         season_xml.write(filename, encoding="utf-8", xml_declaration=True)
 
-    def get_season_poster(self):
-        pass
+    def get_season_poster(self, image_path) -> None:
+        """
+        This is a function to retrieve the season's poster from an url in self.season_post_url.
+        This will be saved as .jpg.
+        :param image_path: Where the image should be saved. Usually season_dir_path/folder.jpg.
+                           Example: /data/formula 1/season 2024/folder.jpg
+        """
+        use_default = self.season_post_url is None
+        if not use_default:
+            response = requests.get(self.season_post_url)
+            use_default = response.status_code != 200
+            if not use_default:
+                fetchnator_logger.info(f"Saving season={self.season} poster from {self.season_post_url}")
+                with open(f"{image_path}", 'wb') as file:
+                    file.write(response.content)
+
+        if use_default:
+            fetchnator_logger.warning(
+                f"Could not fetch season={self.season} poster from {self.season_post_url}, using default")
+            shutil.copy(f"{os.path.dirname(module_path)}/nfo-template/default_image.jpg", image_path)
 
     def _get_season_info(self):
         fetchnator_logger.info(f"Getting data from wikipedia for season={self.season}")
@@ -209,27 +244,18 @@ class Season:
 
 
 class Fetchnator:
-    def __init__(self, api="http://ergast.com/api/f1"):
+    def __init__(self, api="https://api.jolpi.ca/ergast/f1"):
         self.api_base = api
         # Test API connection
         requests.get(f"{self.api_base}/2011.json").raise_for_status()
 
-    def get_round_info(self, year: int, round_number: int) -> RoundInfo:
-        # res = requests.get(
-        #     f"{self.api_base}/{year}/{round_number}.json"
-        # )
-        # res.raise_for_status()
-        #
-        # race_table = json.loads(res.content)["MRData"]["RaceTable"]
-        # race = race_table["Races"][0]
-        #
-        # sprint_date = None
-        # if "Sprint" in race:
-        #     sprint_date = race["Sprint"]["date"]
-        #
-        # return RoundInfo(race_table["season"], race_table["round"], race["date"], race["raceName"],
-        #                  race["Circuit"]["circuitId"], sprint_date)
-        raise NotImplemented("Not implemented")
+        # Get season posters from thesportsdb.com
+        response = requests.get("https://www.thesportsdb.com/api/v1/json/3/search_all_seasons.php?id=4370&poster=1")
+        if response.status_code == 200:
+            fetchnator_logger.info("Got season posters from thesportsdb.com")
+            json_data = response.json()
+            self.poster_data = {item["strSeason"]: item["strPoster"] for item in json_data["seasons"] if
+                                item["strPoster"] is not None}
 
     def get_season_info(self, year: int) -> Season:
         def format_race_dict_date_time(race_dict: dict, key: str) -> str:
@@ -246,7 +272,8 @@ class Fetchnator:
 
         race_table = json.loads(res.content)["MRData"]["RaceTable"]
         races = race_table["Races"]
-        season = Season(race_table["season"], races[0]["date"], races[-1]["date"])
+        season = Season(race_table["season"], races[0]["date"], races[-1]["date"],
+                        self.poster_data.get(race_table["season"]))
 
         for race in races:
             obj_params = {
@@ -260,9 +287,20 @@ class Fetchnator:
                 "fp2_dateTime": "",
                 "fp3_dateTime": "",
                 "quali_dateTime": "",
+                "sprint_quali_dateTime": "",
+                "wiki_url": "",
             }
+            if "url" in race:
+                obj_params["wiki_url"] = race["url"]
+
             if "Sprint" in race:
                 obj_params["sprint_dateTime"] = format_race_dict_date_time(race, "Sprint")
+
+            if "SprintQualifying" in race:
+                obj_params["sprint_quali_dateTime"] = format_race_dict_date_time(race, "SprintQualifying")
+            elif "SprintShootout" in race:
+                # Because why not different names, right?
+                obj_params["sprint_quali_dateTime"] = format_race_dict_date_time(race, "SprintShootout")
 
             if "FirstPractice" in race:
                 obj_params["fp1_dateTime"] = format_race_dict_date_time(race, "FirstPractice")

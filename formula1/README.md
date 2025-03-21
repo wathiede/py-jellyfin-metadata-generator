@@ -73,21 +73,48 @@ Your folder will become something like:
 
 ## How does it work?
 
-- It will fetch the data from [ergast](http://ergast.com/mrd/). I wrote a small wrapper because they said that the
-  service will be discontinued by the end of 2024 :(
+- It will fetch the data from [Jolpi](https://jolpi.ca/).
 - It will download the race posters from [Event Artworks](https://www.eventartworks.de)
+- It will download season poster from [The sports DB](https://www.thesportsdb.com)
 - The race and season description is taken from Wikipedia.
 - It will not overwrite existing metadata files, if you want a new one, then delete the previous one.
+- It will neither delete existing poster images. Delete those if you want new ones.
 
 ## How do I use it?
+
+### Requirements first
+
+- Python >= 3.10 (tested on 3.10, might work on older versions)
+- pip3
+
+1) You can use a virtual environment
+
+```shell
+python3 -m venv .venv
+. .venv/bin/activate # If linux
+.venv\Scripts\activate.bat # if windows cmd
+.venv\Scripts\Activate.ps1 # if windows powershell
+pip install -r requirements.txt
+# Now check the "Run it" section.
+```
+
+2) Just use your system-wide python
+
+```shell
+pip install -r requirements.txt
+# Now check the "Run it" section.
+```
+
+### Run it
 
 - Check the help section: `python3 Main.py -h`
 - Example: `python3 Main.py /path/to/my/f1/library`
 - Are you using a docker container for Jellyfin?
   Then: `python3 Main.py /path/to/my/f1/library --mapped-folder /media/shows/f1`
-- Don't like the webp format? Add `--convert-to-jpg`. **Requires [Pillow](https://pypi.org/project/pillow/) to work**.
+- Don't like the webp format? Add `--convert-to-jpg`.
     - Example: `python3 Main.py /path/to/my/f1/library --mapped-folder /media/shows/f1 --convert-to-jpg`
     - Example: `python3 Main.py /path/to/my/f1/library --convert-to-jpg`
+- Enable more/less logging with `--log-level`
 
 ### Configuration file
 
@@ -102,6 +129,8 @@ Check the `config.json` file, each value is:
 - `fp3`: basically the same as `fp1`
 - `quali`: The string that identify that your video is a qualification session.
   E.g.: `Formula 1 - s2023e20 - Sao Paulo Grand Prix - qualification 2160p50.mp4`
+- `sprint_quali`: The string that identify that your video is a sprint qualification session. In the 2024 season it was called "Sprint shootout".
+  E.g.: `Formula 1 - s2023e20 - Sao Paulo Grand Prix - SprintQuali 2160p50.mp4`
 - `sprint`: The string that identify that your video is a sprint race.
   E.g.: `Formula 1 - s2023e20 - Sao Paulo Grand Prix - Sprint 2160p50.mp4`
 - `metadata_extension`: The metadata file extension, default `.nfo`
@@ -112,25 +141,15 @@ Check the `config.json` file, each value is:
 
 Note: The identification strings are case-insensitive, i.e. "FP1" is the same as "fp1".
 
-## Requirements
-
-- Nothing besides the standard python lib
-- Tested with python 12+. Maybe it will run on older versions.
-
-> **If you want to use `--convert-to-jpg`, you need to install Pillow:**
-
-```shell
-pip install Pillow
-```
-
 ## Things that I know that need to be done
 
 - Add a decent Wikipedia API request.
 - Add support for different languages from Wikipedia.
-- Find a new API since ergast is about to end :(
 - Generate the show metadata `tvshow.nfo`. As a workaround you can try to ask jellyfin to fetch it.
-- Fetch the season poster. For now, add it manually using one of the posters in the link below, or ask jellyfin to fetch
-  one, it will be the generic F1 one.
+
+# Development
+
+You can generate a small dummy dataset by running the `Testing/GenerateTests.py`, or change the `DEPLOY=False` variable in the `Main.py`.
 
 # References
 
