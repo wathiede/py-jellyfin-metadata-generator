@@ -50,18 +50,46 @@ def create_tests():
         sprint_template = Template("Formula 1 - s${season}e${episode} - Sprint ${rand_string}${extension}")
 
         # Sprint without sprint qualification
-        season_folder = create_season_folder(2021)
-        create_files(season_folder, 2021, 1, [race_template_2, fp_template])
-        create_files(season_folder, 2021, 9, [race_template, fp2_template, quali_template])
-        create_files(season_folder, 2021, 10, [race_template_2, sprint_template])
-        create_files(season_folder, 2021, 14, [fp1_template, fp2_template, fp3_template, quali_template, sprint_template, race_template])
+        season_number = 2021
+        season_folder = create_season_folder(season_number)
+        create_files(season_folder, season_number, 1, [race_template_2, fp_template])
+        create_files(season_folder, season_number, 9, [race_template, fp2_template, quali_template])
+        create_files(season_folder, season_number, 10, [race_template_2, sprint_template])
+        create_files(season_folder, season_number, 14, [fp1_template, fp2_template, fp3_template, quali_template, sprint_template, race_template])
 
         # Sprint with sprint qualification
-        season_folder = create_season_folder(2024)
-        create_files(season_folder, 2024, 1, [race_template, fp2_template, quali_template])
-        create_files(season_folder, 2024, 5, [race_template_2, sprint_quali_template, sprint_template])
-        create_files(season_folder, 2024, 21, [fp1_template, quali_template, sprint_quali_template, sprint_template, race_template])
-        create_files(season_folder, 2024, 23, [sprint_template, race_template])
+        season_number = 2024
+        season_folder = create_season_folder(season_number)
+        create_files(season_folder, season_number, 1, [race_template, fp2_template, quali_template])
+        create_files(season_folder, season_number, 5, [race_template_2, sprint_quali_template, sprint_template])
+        create_files(season_folder, season_number, 21, [fp1_template, quali_template, sprint_quali_template, sprint_template, race_template])
+        create_files(season_folder, season_number, 23, [sprint_template, race_template])
+
+        # Some old F1 season, where it wasn't called "Formula one world championship".
+        season_number = 1978
+        season_folder = create_season_folder(season_number)
+        create_files(season_folder, season_number, 1, [race_template])
+        create_files(season_folder, season_number, 8, [race_template_2])
+        create_files(season_folder, season_number, 13, [race_template])
+        create_files(season_folder, season_number, 15, [race_template])
+
+        # Some old F1 season, where it wasn't called "Formula one world championship".
+        season_number = 1958
+        season_folder = create_season_folder(season_number)
+        create_files(season_folder, season_number, 1, [race_template])
+        create_files(season_folder, season_number, 5, [race_template_2])
+        create_files(season_folder, season_number, 8, [race_template_2])
+        create_files(season_folder, season_number, 10, [race_template])
+
+        # Oh noes, some season with strange data and unknown rounds, e.g. 2005 with sprint race
+        season_number = 2005
+        season_folder = create_season_folder(season_number)
+        create_files(season_folder, season_number, 0, [race_template, quali_template, sprint_quali_template])
+        create_files(season_folder, season_number, 1, [race_template, quali_template, sprint_quali_template])
+        create_files(season_folder, season_number, 8, [fp2_template, race_template_2])
+        create_files(season_folder, season_number, 13, [fp1_template, quali_template, sprint_quali_template, sprint_template, race_template])
+        create_files(season_folder, season_number, 19, [fp_template, race_template])
+        create_files(season_folder, season_number, 20, [fp_template, race_template])
 
 
 if __name__ == '__main__':

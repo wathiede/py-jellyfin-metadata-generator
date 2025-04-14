@@ -148,7 +148,8 @@ class RoundInfo:
         elif self.circuit_id in database.database.keys():
             circuit_id = f"{round_date}-{database.database[self.circuit_id]}"
 
-        fetchnator_logger.info(f"Getting round poster from url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp")
+        fetchnator_logger.info(
+            f"Getting round poster from url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp")
         resp = requests.get(f"https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp", stream=True)
 
         use_default = resp.status_code != 200
@@ -164,7 +165,7 @@ class RoundInfo:
                 use_default = True
                 fetchnator_logger.warning(
                     f"Invalid url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp\n"
-                    f"Add to database: '{circuit_id}")
+                    f"Add to database: {circuit_id}")
 
         if use_default:
             fetchnator_logger.warning("Could not fetch round poster, using default")
@@ -187,7 +188,9 @@ class Season:
     def add_round(self, round_info: RoundInfo):
         self.rounds.append(round_info)
 
-    def get_round(self, index) -> RoundInfo:
+    def get_round(self, index) -> RoundInfo | None:
+        if index >= len(self.rounds):
+            return None
         return self.rounds[index]
 
     def to_xml(self, filename: str, mapped_dir, artwork_img_ext):
@@ -227,20 +230,25 @@ class Season:
     def _get_season_info(self):
         fetchnator_logger.info(f"Getting data from wikipedia for season={self.season}")
         res = requests.get(
-            f"https://en.wikipedia.org/w/api.php?action=query"
-            f"&prop=extracts"
-            f"&exintro"
-            f"&exlimit=1"
-            f"&exsectionformat=plain"
-            f"&format=json"
-            f"&titles={self.season}%20Formula%20One%20World%20Championship"
-            f"&explaintext=1",
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "prop": "extracts",
+                "exintro": True,
+                "explaintext": True,
+                "format": "json",
+                "redirects": 1,
+                "titles": f"{self.season}_Formula_One_season"
+            },
             timeout=2
         )
-        res.raise_for_status()
-
-        page_key = list(json.loads(res.content)["query"]["pages"].keys())[0]
-        return json.loads(res.content)["query"]["pages"][page_key]["extract"]
+        if res.status_code == 200:
+            page_key = list(json.loads(res.content)["query"]["pages"].keys())[0]
+            return json.loads(res.content)["query"]["pages"][page_key]["extract"]
+        else:
+            fetchnator_logger.warning(f"Could not fetch season={self.season} from wikipedia")
+            # Returns a simple string.
+            return f"{self.season} Formula 1 One Season"
 
 
 class Fetchnator:
@@ -279,7 +287,7 @@ class Fetchnator:
             obj_params = {
                 "season": race["season"],
                 "f1_round": race["round"],
-                "round_date": f"{race['date']}T{race['time']}",
+                "round_date": f"{season.season}-01-05T00:00:00Z",  # at least put the right year.
                 "race_name": race["raceName"],
                 "circuit_id": race["Circuit"]["circuitId"],
                 "sprint_dateTime": "",
@@ -290,6 +298,13 @@ class Fetchnator:
                 "sprint_quali_dateTime": "",
                 "wiki_url": "",
             }
+            if "date" in race and "time" in race:
+                obj_params["round_date"] = f"{race['date']}T{race['time']}"
+            elif "date" in race:
+                obj_params["round_date"] = f"{race['date']}T00:00:00Z"
+            else:
+                fetchnator_logger.warning(f"No date-time information for season={season.season}")
+
             if "url" in race:
                 obj_params["wiki_url"] = race["url"]
 

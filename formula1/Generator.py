@@ -123,6 +123,14 @@ class Generator:
                             no_ext_round = os.path.splitext(round_file_name)[0]
                             generator_logger.debug(f"Getting round number={int(round_number)}")
                             s_round = season_obj.get_round(int(round_number) - 1)
+
+                            if s_round is None:
+                                generator_logger.warning(
+                                    f"Round={int(round_number)} from Season={season_number} doesn't seem to exist. "
+                                    f"Filename={round_file_name}; "
+                                    f"Please check. Skipping....")
+                                continue
+
                             round_name = s_round.race_name
                             round_sort = s_round.race_name + " 7"
                             round_date = s_round.date
