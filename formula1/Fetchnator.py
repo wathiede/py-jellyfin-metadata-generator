@@ -20,6 +20,8 @@ fetchnator_logger = logging.getLogger('Fetchnator')
 
 module_path = inspect.getfile(inspect.currentframe())
 
+default_headers = {"User-Agent": "Formula1bot data collector py-jellyfin-metadata-generator@xinu.tv"}
+
 
 class ImageConvertor:
     DONT = ""
@@ -104,7 +106,7 @@ class RoundInfo:
     def _get_round_info(self):
         fetchnator_logger.info(f"Getting data from wikipedia for round={self.round}")
 
-        response = requests.get(self.wiki_url)
+        response = requests.get(self.wiki_url, headers=default_headers)
         soup = BeautifulSoup(response.text, 'html.parser')
 
         paragraphs = soup.find_all('p')
@@ -121,7 +123,7 @@ class RoundInfo:
         round_xml.getroot().findall("./aired")[0].text = aired
         round_xml.getroot().findall("./dateadded")[0].text = date.today().isoformat()
         round_xml.getroot().findall("./year")[0].text = self.season
-        round_xml.getroot().findall("./art/poster")[0].text = f"{mapped_dir}/metadata/{round_filename}{artwork_img_ext}"
+        round_xml.getroot().findall("./art/poster")[0].text = f"metadata/{round_filename}{artwork_img_ext}"
 
         round_xml.write(xml_filename, encoding="utf-8", xml_declaration=True)
 
@@ -150,7 +152,7 @@ class RoundInfo:
 
         fetchnator_logger.info(
             f"Getting round poster from url=https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp")
-        resp = requests.get(f"https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp", stream=True)
+        resp = requests.get(f"https://www.eventartworks.de/images/f1@1200/{circuit_id}.webp", stream=True, headers=default_headers)
 
         use_default = resp.status_code != 200
 
@@ -202,7 +204,7 @@ class Season:
         season_xml.getroot().findall("./premiered")[0].text = self.start_date
         season_xml.getroot().findall("./enddate")[0].text = self.end_date
         season_xml.getroot().findall("./seasonnumber")[0].text = self.season
-        season_xml.getroot().findall("./art/poster")[0].text = f"{mapped_dir}/folder{artwork_img_ext}"
+        season_xml.getroot().findall("./art/poster")[0].text = f"folder{artwork_img_ext}"
 
         season_xml.write(filename, encoding="utf-8", xml_declaration=True)
 
@@ -215,7 +217,7 @@ class Season:
         """
         use_default = self.season_post_url is None
         if not use_default:
-            response = requests.get(self.season_post_url)
+            response = requests.get(self.season_post_url, headers=default_headers)
             use_default = response.status_code != 200
             if not use_default:
                 fetchnator_logger.info(f"Saving season={self.season} poster from {self.season_post_url}")
@@ -240,6 +242,7 @@ class Season:
                 "redirects": 1,
                 "titles": f"{self.season}_Formula_One_season"
             },
+            headers=default_headers,
             timeout=2
         )
         if res.status_code == 200:
@@ -255,10 +258,10 @@ class Fetchnator:
     def __init__(self, api="https://api.jolpi.ca/ergast/f1"):
         self.api_base = api
         # Test API connection
-        requests.get(f"{self.api_base}/2011.json").raise_for_status()
+        requests.get(f"{self.api_base}/2011.json", headers=default_headers).raise_for_status()
 
         # Get season posters from thesportsdb.com
-        response = requests.get("https://www.thesportsdb.com/api/v1/json/3/search_all_seasons.php?id=4370&poster=1")
+        response = requests.get("https://www.thesportsdb.com/api/v1/json/3/search_all_seasons.php?id=4370&poster=1", headers=default_headers)
         if response.status_code == 200:
             fetchnator_logger.info("Got season posters from thesportsdb.com")
             json_data = response.json()
@@ -274,6 +277,7 @@ class Fetchnator:
 
         res = requests.get(
             f"{self.api_base}/{year}.json",
+            headers=default_headers,
             timeout=10
         )
         res.raise_for_status()
