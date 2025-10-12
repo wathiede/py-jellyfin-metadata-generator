@@ -117,7 +117,7 @@ class RoundInfo:
         round_xml.getroot().findall("./sorttitle")[0].text = sort_title
         round_xml.getroot().findall("./season")[0].text = self.season
         round_xml.getroot().findall("./episode")[0].text = self.round
-        round_xml.getroot().findall("./plot")[0].text = self.race_description
+        round_xml.getroot().findall("./plot")[0].text = self.race_description or round_filename
         round_xml.getroot().findall("./aired")[0].text = aired
         round_xml.getroot().findall("./dateadded")[0].text = date.today().isoformat()
         round_xml.getroot().findall("./year")[0].text = self.season
