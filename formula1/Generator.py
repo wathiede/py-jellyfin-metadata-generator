@@ -119,6 +119,7 @@ class Generator:
                             is_fp2 = re.findall(rf"{self.config['fp2']}", round_file_name, flags=re.IGNORECASE)
                             is_fp3 = re.findall(rf"{self.config['fp3']}", round_file_name, flags=re.IGNORECASE)
                             is_fp = re.findall(rf"{self.config['freePractice']}", round_file_name, flags=re.IGNORECASE)
+                            session = re.findall(rf"{self.config['session']}", round_file_name, flags=re.IGNORECASE)
 
                             no_ext_round = os.path.splitext(round_file_name)[0]
                             generator_logger.debug(f"Getting round number={int(round_number)}")
@@ -179,8 +180,13 @@ class Generator:
                                 round_name = s_round.race_name + " - Free practice 3"
                                 round_sort = s_round.race_name + " 3"
                                 round_date = s_round.fp3_dateTime
+                            elif session:
+                                session = ' '.join(session)
+                                generator_logger.debug(f"Session {session}")
+                                round_name = s_round.race_name + f" - {session}"
+                                round_sort = s_round.race_name + f" {session}"
                             else:
-                                generator_logger.debug("No special naming in the file, considering as the race")
+                                generator_logger.debug(f"No special naming in the file, considering as the race {round_file_name}")
 
                             if not os.path.exists(f"{season_dir_path}/metadata"):
                                 os.makedirs(f"{season_dir_path}/metadata")
