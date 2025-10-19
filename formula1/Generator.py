@@ -140,7 +140,7 @@ class Generator:
                                 generator_logger.debug(f"Session {session}")
                                 session = ' '.join(session)
                                 session = re.sub(r'Part(\d)', r'Part \1', session)
-                                round_name = s_round.race_name + f" - {session}"
+                                round_name = s_round.race_name + f" {session}"
                                 round_sort = s_round.race_name + f" {session}"
                             elif is_sprint:
                                 generator_logger.debug("Sprint Round")
