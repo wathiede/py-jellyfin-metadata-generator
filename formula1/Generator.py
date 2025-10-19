@@ -136,7 +136,13 @@ class Generator:
                             round_sort = s_round.race_name + " 7"
                             round_date = s_round.date
 
-                            if is_sprint:
+                            if session:
+                                generator_logger.debug(f"Session {session}")
+                                session = ' '.join(session)
+                                session = re.sub(r'Part(\d)', r'Part \1', session)
+                                round_name = s_round.race_name + f" - {session}"
+                                round_sort = s_round.race_name + f" {session}"
+                            elif is_sprint:
                                 generator_logger.debug("Sprint Round")
                                 round_name = s_round.race_name + " - Sprint"
                                 round_sort = s_round.race_name + " 6"
@@ -180,13 +186,8 @@ class Generator:
                                 round_name = s_round.race_name + " - Free practice 3"
                                 round_sort = s_round.race_name + " 3"
                                 round_date = s_round.fp3_dateTime
-                            elif session:
-                                session = ' '.join(session)
-                                generator_logger.debug(f"Session {session}")
-                                round_name = s_round.race_name + f" - {session}"
-                                round_sort = s_round.race_name + f" {session}"
                             else:
-                                generator_logger.debug(f"No special naming in the file, considering as the race {round_file_name}")
+                                raise Exception(f"add a pattern to session {round_file_name}")
 
                             if not os.path.exists(f"{season_dir_path}/metadata"):
                                 os.makedirs(f"{season_dir_path}/metadata")

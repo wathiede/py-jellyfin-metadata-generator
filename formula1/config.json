@@ -7,7 +7,7 @@
   "quali": "qualification",
   "sprint": "sprint",
   "metadata_extension": ".nfo",
-  "session": "(sprint.qualifying|sprint|qualifying|pre-qualifying|press.conference|practice|pre-sprint|post-race.analysis|pre-race)",
+  "session": "(sprint.qualifying|sprint|qualifying|qualification(?:.1|.2|.3)?|pre-qualifying|press.conference(?:.part.?(?:1|2|3))?|practice(?:.(?:one|two|three))|paddock|pre-sprint|post-race.analysis|pre-race|race)",
   "season_metadata": "season.nfo",
   "season_episode_format": "s[0-9]*e[0-9]*"
 }
